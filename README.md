@@ -1,9 +1,8 @@
 <h1 align="center">cc-atlas</h1>
 
-<p align="center">
-  <strong>One CLI for your Claude Code usage.</strong>
-</p>
-
+<div align="center">
+<img width="1800" height="450" alt="ccatlasbanner" src="https://github.com/user-attachments/assets/91b1f6fd-30d2-45a1-8f02-8febad5ad5b4" />
+</div>
 <div align="center">
 
 **cc-atlas** is a single, polished, interactive toolkit that reads your local
