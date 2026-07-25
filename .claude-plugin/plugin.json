@@ -1,0 +1,21 @@
+{
+  "name": "cc-atlas",
+  "displayName": "cc-atlas",
+  "version": "0.1.0",
+  "description": "Local, no-network analytics for your Claude Code usage — session stats, tool usage, streaks, burnout, git activity, cost/cache savings, team leaderboards — answerable right from chat via a bundled CLI.",
+  "author": {
+    "name": "sasly2048"
+  },
+  "homepage": "https://github.com/sasly2048/cli-unified#readme",
+  "repository": "https://github.com/sasly2048/cli-unified",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "analytics",
+    "productivity",
+    "burnout",
+    "cli",
+    "sqlite",
+    "usage-stats"
+  ]
+}

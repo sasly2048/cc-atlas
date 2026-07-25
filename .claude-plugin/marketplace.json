@@ -1,0 +1,17 @@
+{
+  "name": "cc-atlas-marketplace",
+  "owner": {
+    "name": "sasly2048"
+  },
+  "description": "Marketplace for the cc-atlas Claude Code usage analytics plugin.",
+  "plugins": [
+    {
+      "name": "cc-atlas",
+      "source": "./",
+      "description": "Local, no-network analytics for your Claude Code usage — session stats, streaks, burnout, cost/cache savings, team leaderboards, and a chat-native 'ask' command.",
+      "version": "0.1.0",
+      "homepage": "https://github.com/sasly2048/cli-unified#readme",
+      "license": "MIT"
+    }
+  ]
+}

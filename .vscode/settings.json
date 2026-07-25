@@ -1,0 +1,8 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^Test-Path 'c:\\\\Users\\\\ragha\\\\OneDrive\\\\Documents\\\\ccatlas-final\\\\\\.git'$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

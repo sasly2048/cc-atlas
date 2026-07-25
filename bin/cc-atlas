@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Bare `cc-atlas` command exposed on PATH while the cc-atlas Claude Code
+# plugin is enabled (see plugins-reference: bin/ directory). Runs the
+# build cc-atlas produces in the plugin's persistent data directory (see
+# scripts/plugin-setup.sh) rather than anything under this directory,
+# since ${CLAUDE_PLUGIN_ROOT} is replaced on every plugin update.
+#
+# This is separate from bin/cc-atlas.js, which is the npm package's own
+# bin entry (`npm install -g cc-atlas`) and is unaffected by this file.
+set -euo pipefail
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  ROOT="$CLAUDE_PLUGIN_ROOT"
+else
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+DATA="${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/cc-atlas}"
+
+if [ ! -f "$DATA/dist/cli.js" ]; then
+  echo "cc-atlas is still installing its dependencies (first run) — try again in a few seconds, or run:" >&2
+  echo "  bash \"$ROOT/scripts/plugin-setup.sh\"" >&2
+  exit 1
+fi
+
+export NODE_PATH="$DATA/node_modules"
+exec node "$DATA/dist/cli.js" "$@"

@@ -1,0 +1,74 @@
+{
+  "name": "cc-atlas",
+  "version": "0.1.0",
+  "description": "Unified interactive CLI for Claude Code usage analytics — session stats, tool usage, streaks, burnout, git activity, heatmaps and reports in one tool.",
+  "keywords": [
+    "claude-code",
+    "claude",
+    "anthropic",
+    "cli",
+    "analytics",
+    "developer-tools",
+    "productivity",
+    "burnout",
+    "git",
+    "heatmap"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "cc-atlas": "./bin/cc-atlas.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "start": "node bin/cc-atlas.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.9.1",
+    "boxen": "^8.0.1",
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0",
+    "date-fns": "^4.1.0",
+    "gradient-string": "^3.0.0",
+    "inquirer": "^12.4.2",
+    "ora": "^8.2.0",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/gradient-string": "^1.1.6",
+    "@types/node": "^22.13.4",
+    "@typescript-eslint/eslint-plugin": "^8.24.1",
+    "@typescript-eslint/parser": "^8.24.1",
+    "eslint": "^8.57.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sasly2048/cli-unified.git"
+  },
+  "homepage": "https://github.com/sasly2048/cli-unified#readme",
+  "bugs": {
+    "url": "https://github.com/sasly2048/cli-unified/issues"
+  }
+}
