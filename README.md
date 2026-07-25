@@ -10,9 +10,7 @@
       srcset="https://github.com/user-attachments/assets/c3e20f4e-e023-4602-99d4-4203522171a8">
     <img
       src="https://github.com/user-attachments/assets/91b1f6fd-30d2-45a1-8f02-8febad5ad5b4"
-      alt="cc-atlas — One CLI for tracking your Claude Code usage"
-      width="1800"
-      height="450">
+      alt="cc-atlas — One CLI for tracking your Claude Code usage">
   </picture>
 </div>
 
