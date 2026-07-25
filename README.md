@@ -5,11 +5,13 @@
 </p>
 
 <p align="center">
-  cc-atlas is a single, polished, interactive toolkit that reads your local
-  Claude Code session transcripts and git history and turns them into
+  
+  **cc-atlas** is a single, polished, interactive toolkit that reads your local
+  **Claude Code** session transcripts and git history and turns them into
   session stats, tool usage breakdowns, streaks, burnout signals, cost/cache
   savings, team leaderboards, and more — in one menu, against one local
   SQLite database, with nothing sent over a network.
+
 </p>
 
 <div align="center">
