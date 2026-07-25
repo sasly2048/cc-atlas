@@ -77,7 +77,7 @@ mapping are in [Credits & inspiration](#credits--inspiration) and
 
 ## Features
 
-**Core analytics** — session stats (duration, turns, fire-and-forget rate),
+- **Core analytics** — session stats (duration, turns, fire-and-forget rate),
 tool usage (frequency, first/last tool, pairs, trigrams, bursts), streaks &
 reliability (error rate, clean-call streaks, self-recovery), burnout &
 wellness (risk score, peak hours, late-night rate, weekly momentum), git
@@ -88,16 +88,16 @@ human/AI collaboration (autonomy rate, check-in cadence, plan mode), model
 usage + a task-complexity model recommender, and a personality/achievements
 layer with 22 archetypes across professional/technical/fun/premium styles.
 
-**Extras** — cross-project comparison, session replay, team activity,
+- **Extras** — cross-project comparison, session replay, team activity,
 anomaly detection, goals & progress tracking, a local pattern-matched
 "ask" command, and Prometheus/JSON export. See the [dedicated
 section](#extras) below for what each one does.
 
-**Output** — Markdown/HTML/standup/receipt/compare reports, a self-contained
+- **Output** — Markdown/HTML/standup/receipt/compare reports, a self-contained
 SVG README badge, a cron-friendly streak-risk alert, a live session monitor,
 and a one-line `status` command for shell prompts or a statusline widget.
 
-**Extensibility** — a plugin system (`config.plugins.enabled`) for adding
+- **Extensibility** — a plugin system (`config.plugins.enabled`) for adding
 your own menu screens with dependency-injected access to the same SQLite
 connection and config, without touching this package's source.
 
