@@ -4,15 +4,15 @@
   <strong>One CLI for your Claude Code usage.</strong>
 </p>
 
-<p align="center">
-  
-  **cc-atlas** is a single, polished, interactive toolkit that reads your local
-  **Claude Code** session transcripts and git history and turns them into
-  session stats, tool usage breakdowns, streaks, burnout signals, cost/cache
-  savings, team leaderboards, and more — in one menu, against one local
-  SQLite database, with nothing sent over a network.
+<div align="center">
 
-</p>
+**cc-atlas** is a single, polished, interactive toolkit that reads your local
+**Claude Code** session transcripts and git history and turns them into
+session stats, tool usage breakdowns, streaks, burnout signals, cost/cache
+savings, team leaderboards, and more — in one menu, against one local
+SQLite database, with nothing sent over a network.
+
+</div>
 
 <div align="center">
 
@@ -48,6 +48,16 @@ from, [yurukusa](https://www.npmjs.com/~yurukusa)'s catalog of Claude Code
 analytics packages — full credit and the complete package-by-package
 mapping are in [Credits & inspiration](#credits--inspiration) and
 [AUDIT.md](./AUDIT.md).
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a0992694-6477-45b9-83e5-0a243d4748eb"
+       alt="Screenshot 1"
+       width="380" />
+  <img src="https://github.com/user-attachments/assets/4fa79a24-5bf9-4e2f-985f-053a7a0100e9"
+       alt="Screenshot 2"
+       width="380" />
+</p>
+
 
 ## How it works
 
