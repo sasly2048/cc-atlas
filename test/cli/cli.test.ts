@@ -16,7 +16,10 @@ afterEach(() => {
 });
 
 const CLI_ENTRY = path.resolve(__dirname, "../../src/cli.ts");
-const TSX_BIN = path.resolve(__dirname, "../../node_modules/.bin/tsx");
+const TSX_BIN = path.resolve(
+  __dirname,
+  process.platform === "win32" ? "../../node_modules/.bin/tsx.cmd" : "../../node_modules/.bin/tsx",
+);
 
 function runCli(args: string[]): { stdout: string; status: number } {
   try {
