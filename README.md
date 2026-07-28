@@ -34,7 +34,11 @@ SQLite database, with nothing sent over a network.
 ![Runtime](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 
 </div>
+<div align="center">
 
+  [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/sasly204800)
+
+</div>
 > [!TIP]
 > **Looking for the Codex version?** A dedicated **OpenAI Codex** adaptation of **cc-atlas** is also available as **[codex-atlas](https://github.com/sasly2048/codex-atlas)**. It provides the same analytics-focused experience, tailored for **Codex** transcripts and workflows while keeping the spirit of the original project.
 
