@@ -16,14 +16,11 @@ afterEach(() => {
 });
 
 const CLI_ENTRY = path.resolve(__dirname, "../../src/cli.ts");
-const TSX_BIN = path.resolve(
-  __dirname,
-  process.platform === "win32" ? "../../node_modules/.bin/tsx.cmd" : "../../node_modules/.bin/tsx",
-);
+const TSX_CLI = path.resolve(__dirname, "../../node_modules/tsx/dist/cli.mjs");
 
 function runCli(args: string[]): { stdout: string; status: number } {
   try {
-    const stdout = execFileSync(TSX_BIN, [CLI_ENTRY, ...args], {
+    const stdout = execFileSync(process.execPath, [TSX_CLI, CLI_ENTRY, ...args], {
       env: { ...process.env, CC_ATLAS_HOME: path.join(home, ".cc-atlas"), HOME: home },
       encoding: "utf8",
     });
