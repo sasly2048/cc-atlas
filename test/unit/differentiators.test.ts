@@ -57,6 +57,8 @@ function call(overrides: Partial<ToolCallRecord>): ToolCallRecord {
     filePath: null,
     command: null,
     sizeDelta: null,
+    toolUseId: null,
+    orphaned: false,
     ...overrides,
   };
 }
@@ -199,7 +201,7 @@ describe("export renderers", () => {
     // Multiple tool names so the labeled 	ool_calls_by_tool family has
     // several distinct samples \u2014 that's the case that triggered the
     // duplicated # HELP / # TYPE bug before the fix (#7).
-    toolCallRepo.insertMany([
+    toolCallRepo.upsertMany([
       call({ sessionId: "1", toolName: "Read", turnIndex: 0 }),
       call({ sessionId: "1", toolName: "Edit", turnIndex: 1, category: "edit" }),
       call({ sessionId: "1", toolName: "Bash", turnIndex: 2, category: "execute" }),

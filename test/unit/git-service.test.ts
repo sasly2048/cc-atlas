@@ -42,6 +42,7 @@ function fakeCommit(overrides: Partial<GitCommitRecord>): GitCommitRecord {
   return {
     hash: "abc123",
     repo: "/tmp/repo",
+    repoCanonical: "/tmp/repo",
     author: "Alice",
     authorEmail: "alice@example.com",
     ts: 0,
@@ -50,6 +51,8 @@ function fakeCommit(overrides: Partial<GitCommitRecord>): GitCommitRecord {
     deletions: 0,
     filesChanged: 0,
     isAiAttributed: false,
+    attributionSource: "none",
+    attributionConfidence: 0,
     ...overrides,
   };
 }
@@ -74,7 +77,7 @@ describe("parseGitLog", () => {
       "\n"
     );
 
-    const commits = parseGitLog(raw, "/tmp/repo");
+    const commits = parseGitLog(raw, "/tmp/repo", "/tmp/repo");
     expect(commits).toHaveLength(1);
     expect(commits[0]).toMatchObject({
       hash: "abc123",
@@ -88,7 +91,7 @@ describe("parseGitLog", () => {
 
   it("handles binary files (numstat shows - -) without crashing", () => {
     const raw = [`abc${US}Bob${US}bob@x.com${US}1700000000${US}add image`, "-\t-\tassets/photo.png"].join("\n");
-    const commits = parseGitLog(raw, "/tmp/repo");
+    const commits = parseGitLog(raw, "/tmp/repo", "/tmp/repo");
     expect(commits[0]!.insertions).toBe(0);
     expect(commits[0]!.filesChanged).toBe(1);
   });
@@ -100,7 +103,7 @@ describe("parseGitLog", () => {
       `c2${US}B${US}b@x.com${US}2000${US}second`,
       "2\t2\tfile.ts",
     ].join("\n");
-    const commits = parseGitLog(raw, "/tmp/repo");
+    const commits = parseGitLog(raw, "/tmp/repo", "/tmp/repo");
     expect(commits.map((c) => c.hash)).toEqual(["c1", "c2"]);
   });
 });
@@ -129,23 +132,37 @@ describe("correlateCommitsWithSessions", () => {
 });
 
 describe("findGhostDays", () => {
-  it("flags a day with an AI-attributed commit but no session that day", () => {
+  it("flags a day with an explicit-AI commit but no session that day", () => {
     const day = new Date("2026-02-01T12:00:00.000Z").getTime();
-    const commits = [fakeCommit({ ts: day, isAiAttributed: true })];
+    const commits = [
+      fakeCommit({ ts: day, isAiAttributed: true, attributionSource: "explicit" }),
+    ];
     const sessions: SessionRecord[] = [];
     expect(findGhostDays(commits, sessions)).toEqual(["2026-02-01"]);
   });
 
+  it("does NOT flag a day with a time-correlated commit (no session = no correlation)", () => {
+    // A correlated ghost day is a logical contradiction: a commit inside a
+    // session window can't be on a day with no session. So this case
+    // produces no ghost days — only explicit attribution counts.
+    const day = new Date("2026-02-01T12:00:00.000Z").getTime();
+    const commits = [
+      fakeCommit({ ts: day, isAiAttributed: true, attributionSource: "correlated" }),
+    ];
+    const sessions: SessionRecord[] = [];
+    expect(findGhostDays(commits, sessions)).toEqual([]);
+  });
+
   it("does not flag a day that also has a recorded session", () => {
     const day = new Date("2026-02-01T12:00:00.000Z").getTime();
-    const commits = [fakeCommit({ ts: day, isAiAttributed: true })];
+    const commits = [fakeCommit({ ts: day, isAiAttributed: true, attributionSource: "explicit" })];
     const sessions = [fakeSession({ startedAt: day - 1000, endedAt: day + 1000 })];
     expect(findGhostDays(commits, sessions)).toEqual([]);
   });
 
   it("ignores commits that aren't AI-attributed", () => {
     const day = new Date("2026-02-01T12:00:00.000Z").getTime();
-    const commits = [fakeCommit({ ts: day, isAiAttributed: false })];
+    const commits = [fakeCommit({ ts: day, isAiAttributed: false, attributionSource: "none" })];
     expect(findGhostDays(commits, [])).toEqual([]);
   });
 });

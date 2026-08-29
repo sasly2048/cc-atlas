@@ -228,6 +228,8 @@ export function showGitActivity(db: Db): void {
     renderKeyValueTable([
       ["Total commits", report.totalCommits],
       ["AI-attributed commits", report.aiAttributedCommits],
+      ["  (explicit: trailer / generated-with)", report.explicitlyAiAttributedCommits],
+      ["  (correlated: in session window)", report.correlatedAiAttributedCommits],
       ["Lines added", `+${report.totalInsertions}`],
       ["Lines removed", `-${report.totalDeletions}`],
       ["Files changed", report.totalFilesChanged],

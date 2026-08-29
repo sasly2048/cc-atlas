@@ -52,6 +52,8 @@ function call(overrides: Partial<ToolCallRecord>): ToolCallRecord {
     filePath: null,
     command: null,
     sizeDelta: null,
+    toolUseId: null,
+    orphaned: false,
     ...overrides,
   };
 }
@@ -62,7 +64,7 @@ function buildDataWith(overrides: { sessions?: SessionRecord[]; toolCalls?: Tool
   const sessionRepo = new SessionRepository(db);
   const toolCallRepo = new ToolCallRepository(db);
   for (const s of overrides.sessions ?? []) sessionRepo.upsert(s);
-  for (const c of overrides.toolCalls ?? []) toolCallRepo.insertMany([c]);
+  for (const c of overrides.toolCalls ?? []) toolCallRepo.upsertMany([c]);
   return buildReportData(db, DEFAULT_CONFIG, 0, "All time");
 }
 

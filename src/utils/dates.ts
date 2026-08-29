@@ -35,6 +35,28 @@ export function isoWeekKey(ts: number): string {
   return `${target.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
+/** Return the ISO week key for the week immediately preceding the one
+ * containing `ts`. Used to walk back through a session history to
+ * zero-fill weekly momentum with the actual elapsed calendar weeks.
+ * Handles the year boundary (week 1 of the previous year is week 52 or
+ * 53 of the calendar year before). */
+export function previousIsoWeekKey(weekKey: string): string {
+  const match = /^(\d{4})-W(\d{2})$/.exec(weekKey);
+  if (!match) throw new Error(`Invalid ISO week key: ${weekKey}`);
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  if (week > 1) {
+    return `${year}-W${String(week - 1).padStart(2, "0")}`;
+  }
+  // Walking back from W01 lands in the previous year's last week. ISO
+  // week numbering: a year has 52 or 53 weeks; the previous year's
+  // W52/W53 contains Jan 1 of the current year. Find it by looking up
+  // Dec 28 of the previous year (always in the last ISO week, per
+  // ISO 8601).
+  const lastWeek = isoWeekKey(Date.UTC(year - 1, 11, 28));
+  return lastWeek;
+}
+
 /** Local-timezone month key (YYYY-MM). Aligns with `dayKey` so cost/forecast
  * "this month" and heatmap month rollups can't disagree across timezones. */
 export function monthKey(ts: number): string {
@@ -65,4 +87,20 @@ export function formatHours(ms: number): string {
 
 export function daysAgo(n: number, from = Date.now()): number {
   return from - n * DAY_MS;
+}
+
+/** Move a timestamp back by one local calendar day. Used for DST-safe
+ * streak calculation: subtracting 24h × N around a DST transition lands
+ * on the wrong local date, but constructing `new Date(year, month,
+ * day - 1)` lets the Date object normalize back into the right calendar
+ * day for the local timezone. */
+export function dayBefore(ts: number): number {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1).getTime();
+}
+
+/** Mirror of dayBefore — advance by one local calendar day. */
+export function dayAfter(ts: number): number {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
 }

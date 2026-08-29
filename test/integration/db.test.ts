@@ -81,10 +81,10 @@ describe("ToolCallRepository", () => {
     new SessionRepository(db).upsert(session({}));
     const repo = new ToolCallRepository(db);
     const calls: ToolCallRecord[] = [
-      { sessionId: "s1", toolName: "Bash", ts: 200, status: "success", turnIndex: 1, inputPreview: null, category: "execute", filePath: null, command: "ls", sizeDelta: null },
-      { sessionId: "s1", toolName: "Read", ts: 100, status: "success", turnIndex: 0, inputPreview: null, category: "read", filePath: "/a", command: null, sizeDelta: null },
+      { sessionId: "s1", toolName: "Bash", ts: 200, status: "success", turnIndex: 1, inputPreview: null, category: "execute", filePath: null, command: "ls", sizeDelta: null, toolUseId: "tu-bash", orphaned: false },
+      { sessionId: "s1", toolName: "Read", ts: 100, status: "success", turnIndex: 0, inputPreview: null, category: "read", filePath: "/a", command: null, sizeDelta: null, toolUseId: "tu-read", orphaned: false },
     ];
-    repo.insertMany(calls);
+    repo.upsertMany(calls);
     const all = repo.all();
     expect(all.map((c) => c.toolName)).toEqual(["Read", "Bash"]);
   });
@@ -96,6 +96,7 @@ describe("GitCommitRepository", () => {
     const commit: GitCommitRecord = {
       hash: "abc",
       repo: "/tmp/r",
+      repoCanonical: "/tmp/r",
       author: "A",
       authorEmail: null,
       ts: 100,
@@ -104,6 +105,8 @@ describe("GitCommitRepository", () => {
       deletions: 0,
       filesChanged: 1,
       isAiAttributed: false,
+      attributionSource: "none",
+      attributionConfidence: 0,
     };
     repo.insertMany([commit]);
     repo.insertMany([commit]);
@@ -112,7 +115,7 @@ describe("GitCommitRepository", () => {
 
   it("upgrades is_ai_attributed when a later session overlaps the commit", () => {
     // Regression for #5 (stale git AI attribution): insert a commit with
-    // message-only AI attribution, then call recomputeAiAttribution with a
+    // message-only AI attribution, then call recomputeAttribution with a
     // session that overlaps the commit's timestamp.
     new SessionRepository(db).upsert(
       session({ id: "s-window", startedAt: 1000, endedAt: 5000 })
@@ -121,6 +124,7 @@ describe("GitCommitRepository", () => {
     const commit: GitCommitRecord = {
       hash: "abc",
       repo: "/tmp/r",
+      repoCanonical: "/tmp/r",
       author: "A",
       authorEmail: null,
       ts: 3000, // inside [1000, 5000]
@@ -129,13 +133,16 @@ describe("GitCommitRepository", () => {
       deletions: 0,
       filesChanged: 1,
       isAiAttributed: false,
+      attributionSource: "none",
+      attributionConfidence: 0,
     };
     repo.insertMany([commit]);
     expect(repo.all()[0]!.isAiAttributed).toBe(false);
 
-    const upgraded = repo.recomputeAiAttribution([session({ id: "s-window" })]);
-    expect(upgraded).toBe(1);
+    const result = repo.recomputeAttribution([session({ id: "s-window" })]);
+    expect(result.promoted).toBe(1);
     expect(repo.all()[0]!.isAiAttributed).toBe(true);
+    expect(repo.all()[0]!.attributionSource).toBe("correlated");
   });
 
   it("does not downgrade a commit that is already AI-attributed", () => {
@@ -144,6 +151,7 @@ describe("GitCommitRepository", () => {
       {
         hash: "already",
         repo: "/tmp/r",
+        repoCanonical: "/tmp/r",
         author: "A",
         authorEmail: null,
         ts: 5000,
@@ -152,12 +160,41 @@ describe("GitCommitRepository", () => {
         deletions: 0,
         filesChanged: 1,
         isAiAttributed: true,
+        attributionSource: "explicit",
+        attributionConfidence: 1,
       },
     ]);
     // No sessions, so the method is a no-op.
-    const upgraded = repo.recomputeAiAttribution([]);
-    expect(upgraded).toBe(0);
+    const result = repo.recomputeAttribution([]);
+    expect(result.changed).toBe(0);
     expect(repo.all()[0]!.isAiAttributed).toBe(true);
+    expect(repo.all()[0]!.attributionSource).toBe("explicit");
+  });
+
+  it("force: true wipes all attribution before re-deriving", () => {
+    const repo = new GitCommitRepository(db);
+    repo.insertMany([
+      {
+        hash: "h1",
+        repo: "/tmp/r",
+        repoCanonical: "/tmp/r",
+        author: "A",
+        authorEmail: null,
+        ts: 1000,
+        message: "fix",
+        insertions: 1,
+        deletions: 0,
+        filesChanged: 1,
+        isAiAttributed: true,
+        attributionSource: "explicit",
+        attributionConfidence: 1,
+      },
+    ]);
+    // No sessions — force recompute should demote everything.
+    const result = repo.recomputeAttribution([], { force: true });
+    expect(result.demoted).toBe(1);
+    expect(repo.all()[0]!.isAiAttributed).toBe(false);
+    expect(repo.all()[0]!.attributionSource).toBe("none");
   });
 });
 

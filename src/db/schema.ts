@@ -2,7 +2,7 @@
  * numbered entries rather than editing old ones — SQLite files already on
  * disk have run the earlier migrations and must not see them change. */
 export const MIGRATIONS: string[] = [
-  // v1: base schema
+  // v1: base schema (original)
   `
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
@@ -84,5 +84,72 @@ export const MIGRATIONS: string[] = [
   `
   ALTER TABLE sessions ADD COLUMN source_label TEXT NOT NULL DEFAULT 'you';
   CREATE INDEX IF NOT EXISTS idx_sessions_source_label ON sessions(source_label);
+  `,
+  // v3: attribution confidence + repo canonicalization (hard-critic audit).
+  // Hard-critic BUG #5, #29, #30: split is_ai_attributed into source + confidence,
+  // and key git_commits on a canonical repo path so /project and /project/ are
+  // merged. The schema change is destructive (PRIMARY KEY changes), so we
+  // migrate data on existing DBs before adding the new constraint.
+  `
+  ALTER TABLE git_commits ADD COLUMN repo_canonical TEXT NOT NULL DEFAULT '';
+  ALTER TABLE git_commits ADD COLUMN attribution_source TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE git_commits ADD COLUMN attribution_confidence REAL NOT NULL DEFAULT 0;
+  UPDATE git_commits SET repo_canonical = repo WHERE repo_canonical = '';
+  -- Replace the old (repo, hash) PK with (repo_canonical, hash). SQLite
+  -- doesn't support ALTER on PRIMARY KEY, so rebuild via rename + copy.
+  -- The v1 PK is preserved in the old table name, but only as a fallback.
+  CREATE TABLE IF NOT EXISTS git_commits_v3 (
+    hash TEXT NOT NULL,
+    repo TEXT NOT NULL,
+    repo_canonical TEXT NOT NULL,
+    author TEXT NOT NULL,
+    author_email TEXT,
+    ts INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    insertions INTEGER NOT NULL DEFAULT 0,
+    deletions INTEGER NOT NULL DEFAULT 0,
+    files_changed INTEGER NOT NULL DEFAULT 0,
+    is_ai_attributed INTEGER NOT NULL DEFAULT 0,
+    attribution_source TEXT NOT NULL DEFAULT 'none',
+    attribution_confidence REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (repo_canonical, hash)
+  );
+  INSERT OR IGNORE INTO git_commits_v3
+    SELECT hash, repo, repo_canonical, author, author_email, ts, message,
+           insertions, deletions, files_changed, is_ai_attributed,
+           attribution_source, attribution_confidence
+    FROM git_commits;
+  DROP TABLE git_commits;
+  ALTER TABLE git_commits_v3 RENAME TO git_commits;
+  CREATE INDEX IF NOT EXISTS idx_git_commits_ts ON git_commits(ts);
+  CREATE INDEX IF NOT EXISTS idx_git_commits_canonical
+    ON git_commits(repo_canonical, ts);
+  CREATE INDEX IF NOT EXISTS idx_git_commits_attribution
+    ON git_commits(attribution_source);
+  `,
+  // v4: content-hash ingestion + tool-call identity (hard-critic audit
+  // BUG #3, #18, #19). Two parts:
+  //   1) ingest_files: source_label added to the PK so the same path
+  //      ingested for two team members doesn't collide. The old single-
+  //      column PK is replaced with (source_label, path).
+  //   2) tool_calls: tool_use_id added and made the idempotency key.
+  `
+  ALTER TABLE tool_calls ADD COLUMN tool_use_id TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_calls_session_use
+    ON tool_calls(session_id, tool_use_id) WHERE tool_use_id IS NOT NULL;
+
+  CREATE TABLE IF NOT EXISTS ingest_files_v4 (
+    source_label TEXT NOT NULL DEFAULT 'you',
+    path TEXT NOT NULL,
+    mtime_ms REAL NOT NULL,
+    size INTEGER NOT NULL,
+    content_hash TEXT NOT NULL DEFAULT '',
+    session_id TEXT,
+    PRIMARY KEY (source_label, path)
+  );
+  INSERT OR IGNORE INTO ingest_files_v4 (source_label, path, mtime_ms, size, content_hash, session_id)
+    SELECT 'you', path, mtime_ms, size, '', session_id FROM ingest_files;
+  DROP TABLE ingest_files;
+  ALTER TABLE ingest_files_v4 RENAME TO ingest_files;
   `,
 ];

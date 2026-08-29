@@ -30,7 +30,7 @@ import {
   runExport,
 } from "./views/more-views.js";
 import { runLiveMonitor } from "./views/live.js";
-import { loadPlugins } from "../plugins/loader.js";
+import { loadPlugins, type LoadedPlugin } from "../plugins/loader.js";
 
 type MenuAction =
   | "dashboard"
@@ -67,7 +67,7 @@ type MenuAction =
 export async function runInteractiveMenu(ctx: AppContext, version: string): Promise<void> {
   console.log(renderBanner(version));
 
-  const plugins = await loadPlugins(ctx.config.plugins.enabled);
+  const plugins: LoadedPlugin[] = await loadPlugins(ctx.config.plugins.enabled);
 
   let running = true;
   while (running) {

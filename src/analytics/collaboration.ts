@@ -4,11 +4,31 @@ import { groupBy, mean, ratio } from "../utils/numbers.js";
 /** Consolidates: cc-human, cc-checkin, cc-ask, cc-subagent, cc-tasks,
  * cc-todo, cc-plan, cc-web, cc-search, cc-fetch. (cc-denied is not
  * included — see AUDIT.md: transcripts don't reliably distinguish a
- * user-denied tool call from any other failed call.) */
+ * user-denied tool call from any other failed call.)
+ *
+ * Honest-methodology note: most of these "autonomy" / "check-in cadence"
+ * metrics are not what the yurukusa packages claim. The original
+ * implementation approximated check-in cadence as
+ * `sessionDuration / (userTurns - 1)` — that assumes user turns are
+ * evenly distributed within a session, which they are not. We've kept
+ * the same shape so the dashboards don't go blank for users who already
+ * have a workflow, but added a clearly-labeled note (the
+ * `autonomyRate` field name is a soft stand-in; treat as "assistant
+ * share of turns", not "autonomy"). The medianMinutesBetweenCheckins
+ * approximation is documented as such. A future pass can wire in
+ * actual user-message timestamps (read from the JSONL, kept on the
+ * session record) and replace both with real values. */
 export interface CollaborationReport {
-  autonomyRate: number; // assistant turns / total turns, higher = more autonomous
-  pureAutonomousSessionRate: number; // sessions with <= 1 user turn
+  /** Assistant share of total turns. NOT a real autonomy score — see
+   * note above. Kept for backwards compatibility with the menu screens. */
+  autonomyRate: number;
+  /** Fraction of sessions with at most 1 user turn. */
+  pureAutonomousSessionRate: number;
+  /** Average user turn count per session. */
   avgUserCheckinsPerSession: number;
+  /** Approximated: sessionDuration / (userTurns - 1). Units are
+   * "minutes between turns" but it's an average over an assumed-uniform
+   * distribution. */
   medianMinutesBetweenCheckins: number;
   subagentAdoptionRate: number;
   avgSubagentsPerSession: number;
@@ -44,12 +64,12 @@ export function computeCollaborationReport(
 
   const pureAutonomous = sessions.filter((s) => s.userTurnCount <= 1).length;
 
-  const bySession = groupBy(toolCalls, (t) => t.sessionId);
+  // Approximation, not measurement: the actual distribution of user
+  // turns within a session is unknown from the aggregate counts. The
+  // right fix is to read the user message timestamps from the JSONL
+  // directly; until then this is a "characteristic average" of how
+  // dense a session is, not a check-in cadence.
   const checkinGapsMinutes: number[] = [];
-  // User check-in cadence isn't directly visible from tool_calls (those are
-  // assistant-side), but sessions with more user turns spaced across a
-  // longer duration imply more frequent check-ins; approximate the gap as
-  // session duration / user turns.
   for (const s of sessions) {
     if (s.userTurnCount > 1) {
       checkinGapsMinutes.push(s.durationMs / 60_000 / (s.userTurnCount - 1));
@@ -73,8 +93,11 @@ export function computeCollaborationReport(
     toolCalls.filter((t) => t.toolName === "WebFetch").map((t) => t.sessionId)
   );
 
-  const planCyclesPerSession = [...bySession.entries()].map(
-    ([, calls]) => calls.filter((c) => c.toolName === "ExitPlanMode").length
+  const bySession = groupBy(toolCalls, (t) => t.sessionId);
+  // Zero-fill every session (including those with no tool calls) so the
+  // average isn't biased toward tool-using sessions.
+  const planCyclesPerSession = sessions.map(
+    (s) => (bySession.get(s.id) ?? []).filter((c) => c.toolName === "ExitPlanMode").length
   );
 
   return {

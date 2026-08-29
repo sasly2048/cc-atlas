@@ -48,6 +48,8 @@ function call(overrides: Partial<ToolCallRecord>): ToolCallRecord {
     filePath: null,
     command: null,
     sizeDelta: null,
+    toolUseId: null,
+    orphaned: false,
     ...overrides,
   };
 }

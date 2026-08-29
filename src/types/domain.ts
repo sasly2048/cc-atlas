@@ -47,6 +47,14 @@ export interface ToolCallRecord {
   command: string | null;
   /** Net characters added for Edit/Write/MultiEdit calls (new - old length). */
   sizeDelta: number | null;
+  /** Stable identity for idempotent inserts. tool_use_id from the transcript
+   * when present, else derived from (ts, turnIndex, toolName) so a
+   * re-ingest of the same file is a no-op. */
+  toolUseId: string | null;
+  /** True if this row was produced from a tool_result with no matching
+   * tool_use — kept distinct from real tool calls so analytics can
+   * exclude or report them separately. */
+  orphaned: boolean;
 }
 
 export type ToolCategory =
@@ -60,9 +68,15 @@ export type ToolCategory =
   | "task"
   | "other";
 
+/** Why a commit is or isn't considered AI-attributed. */
+export type AttributionSource = "none" | "explicit" | "correlated";
+
 export interface GitCommitRecord {
   hash: string;
   repo: string;
+  /** Canonical absolute path of the repo (audit-grade: identical paths
+   * configured as e.g. /project and /project/ are merged into one row). */
+  repoCanonical: string;
   author: string;
   authorEmail: string | null;
   ts: number;
@@ -70,7 +84,13 @@ export interface GitCommitRecord {
   insertions: number;
   deletions: number;
   filesChanged: number;
+  /** Boolean kept for fast SQL filtering. The reason lives in
+   * attributionSource; the strength lives in attributionConfidence. */
   isAiAttributed: boolean;
+  attributionSource: AttributionSource;
+  /** 0..1 — how confident the attribution is. Explicit (Co-Authored-By /
+   * Generated-With) is 1.0; time-correlation alone is at most ~0.6. */
+  attributionConfidence: number;
 }
 
 export interface DailyRollup {
@@ -84,7 +104,28 @@ export interface DailyRollup {
 
 export interface IngestFileState {
   path: string;
+  sourceLabel: string;
   mtimeMs: number;
   size: number;
+  /** Hex sha-256 of the file content. Used for change detection so a
+   * modification that preserves mtime+size is still detected. */
+  contentHash: string;
   sessionId: string | null;
+}
+
+/** Per-run aggregate over an ingest pass — distinguishes "nothing changed"
+ * from "tried and failed" so the user can see data-quality problems. */
+export interface IngestResult {
+  filesScanned: number;
+  filesIngested: number;
+  filesSkipped: number;
+  filesUnreadable: number;
+  filesMalformed: number;
+  filesStale: number;
+  sessionsUpserted: number;
+  sessionsRemoved: number;
+  toolCallsInserted: number;
+  malformedLines: number;
+  parseWarnings: string[];
+  durationMs: number;
 }

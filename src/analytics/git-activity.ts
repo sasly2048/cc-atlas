@@ -11,6 +11,13 @@ export interface GitActivityReport {
   totalDeletions: number;
   totalFilesChanged: number;
   aiAttributedCommits: number;
+  /** Commits attributed via explicit signal (Co-Authored-By trailer or
+   * "Generated with Claude Code" boilerplate). More trustworthy than
+   * time-correlation alone. */
+  explicitlyAiAttributedCommits: number;
+  /** Commits attributed because their timestamp falls inside a session
+   * window. Heuristic; user may have committed manually during a session. */
+  correlatedAiAttributedCommits: number;
   ghostDays: string[];
   weeklyCollabTrend: { week: string; commits: number; ccHours: number; commitsPerHour: number }[];
   weeklyProjectSpread: { week: string; distinctProjects: number }[];
@@ -51,6 +58,12 @@ export function computeGitActivityReport(
     totalDeletions: sum(commits.map((c) => c.deletions)),
     totalFilesChanged: sum(commits.map((c) => c.filesChanged)),
     aiAttributedCommits: commits.filter((c) => c.isAiAttributed).length,
+    explicitlyAiAttributedCommits: commits.filter(
+      (c) => c.attributionSource === "explicit"
+    ).length,
+    correlatedAiAttributedCommits: commits.filter(
+      (c) => c.attributionSource === "correlated"
+    ).length,
     ghostDays: findGhostDays(commits, sessions),
     weeklyCollabTrend,
     weeklyProjectSpread,

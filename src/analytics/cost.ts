@@ -7,7 +7,10 @@ import { sum } from "../utils/numbers.js";
  * Pricing is illustrative, not billing-accurate: Anthropic's published
  * per-model rates change over time and aren't embedded in session
  * transcripts, so this uses a single representative blended rate. Treat
- * dollar figures as directional, not an invoice. */
+ * dollar figures as directional, not an invoice. The `cacheHitRatio`
+ * here is the same as Anthropic's published metric definition
+ * (cacheRead / (cacheRead + input) on the assumption that "input" in
+ * the transcript usage block is the non-cached input token count). */
 const ILLUSTRATIVE_RATES_PER_MTOK = {
   input: 3.0,
   output: 15.0,
@@ -64,7 +67,8 @@ export function computeCostReport(sessions: SessionRecord[], now = Date.now()): 
     cacheSavingsUsd: Math.max(0, costWithoutCacheUsd - actualCostUsd),
     projectedMonthEndCostUsd,
     ratesNote:
-      "Illustrative blended rate (not model- or date-specific); see docs for how to override.",
+      "Illustrative blended rate (not model- or date-specific); see docs for how to override. " +
+      "Cache hit ratio = cacheRead / (cacheRead + input).",
   };
 }
 

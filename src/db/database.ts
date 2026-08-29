@@ -6,10 +6,31 @@ import { MIGRATIONS } from "./schema.js";
 
 export type Db = Database.Database;
 
+/** Keyed singleton: one Db per *absolute* database path. Re-opening the
+ * same path returns the cached connection. Asking for a different path
+ * while another is open throws — silent cross-DB access is what the old
+ * unkeyed singleton let happen, and the resulting bugs (tests operating on
+ * the wrong DB, two consumers stepping on each other) were not recoverable
+ * from the call site. */
 let instance: Db | null = null;
+let instanceKey: string | null = null;
+
+function canonicalKey(dbPath: string): string {
+  // resolve() normalizes separators and ".." segments; symlinks are NOT
+  // followed here on purpose — if a user has two symlinks to the same
+  // file, they're operating them as one logical database.
+  return path.resolve(dbPath);
+}
 
 export function openDatabase(dbPath: string = DB_PATH): Db {
-  if (instance) return instance;
+  const key = canonicalKey(dbPath);
+  if (instance && instanceKey === key) return instance;
+  if (instance && instanceKey !== key) {
+    throw new Error(
+      `Cannot open ${dbPath}: a different database (${instanceKey}) is ` +
+        `already open. Call closeDatabase() first, or open a new process.`
+    );
+  }
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
@@ -17,6 +38,7 @@ export function openDatabase(dbPath: string = DB_PATH): Db {
   db.pragma("foreign_keys = ON");
   migrate(db);
   instance = db;
+  instanceKey = key;
   return db;
 }
 
@@ -47,4 +69,12 @@ export function migrate(db: Db): void {
 export function closeDatabase(): void {
   instance?.close();
   instance = null;
+  instanceKey = null;
+}
+
+/** Test-only: clear the singleton without going through closeDatabase so
+ * tests can swap the underlying file path between cases without leaks. */
+export function _resetDatabaseSingletonForTests(): void {
+  instance = null;
+  instanceKey = null;
 }

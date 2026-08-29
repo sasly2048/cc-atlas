@@ -1,13 +1,27 @@
 import type { ToolkitConfig } from "../core/config.js";
 import type { SessionRecord } from "../types/domain.js";
-import { dayKey, hourOfDay, isoWeekKey, WEEKDAY_NAMES, dayOfWeek } from "../utils/dates.js";
+import {
+  dayKey,
+  hourOfDay,
+  isoWeekKey,
+  WEEKDAY_NAMES,
+  dayOfWeek,
+  previousIsoWeekKey,
+} from "../utils/dates.js";
 import { groupBy, mean, sum } from "../utils/numbers.js";
 
 /** Consolidates: cc-burnout, cc-peak, cc-night-owl, cc-day-pattern, cc-shift,
  * cc-gap, cc-momentum. All read the same started_at/duration series and
- * differ only in how they slice it, so they're computed together here. */
+ * differ only in how they slice it, so they're computed together here.
+ *
+ * Methodology note: the `score` is a heuristic, not a validated
+ * measurement of burnout. It should be treated as a "workload risk
+ * indicator" that suggests where to look, not as a clinical metric. The
+ * doc comment on each contributing weight describes what it
+ * actually counts. */
 export interface BurnoutReport {
-  score: number; // 0-100, higher = higher burnout risk
+  /** 0-100, higher = more workload risk factors detected. Heuristic. */
+  score: number;
   riskLevel: "low" | "moderate" | "high" | "severe";
   factors: string[];
   peakHours: { hour: number; sessions: number }[];
@@ -16,6 +30,10 @@ export interface BurnoutReport {
   weekdayBreakdown: { day: string; hours: number }[];
   hourlyShift: number[]; // 24 buckets, hours of activity per hour-of-day
   gapHoursBetweenSessions: { median: number; min: number; max: number };
+  /** Zero-filled weekly series for momentum: every ISO week from the
+   * earliest session to the latest is present, with 0 hours for weeks
+   * with no activity. This makes the trend analysis reflect real
+   * elapsed time, not just the weeks in which something happened. */
   weeklyMomentum: { week: string; hours: number }[];
   momentumTrend: "accelerating" | "steady" | "declining";
 }
@@ -76,9 +94,39 @@ export function computeBurnoutReport(
   };
 
   const byWeek = groupBy(sessions, (s) => isoWeekKey(s.startedAt));
-  const weeklyMomentum = [...byWeek.entries()]
-    .map(([week, bucket]) => ({ week, hours: sum(bucket.map((s) => s.durationMs)) / 3_600_000 }))
-    .sort((a, b) => (a.week < b.week ? -1 : 1));
+  const observedWeeks = [...byWeek.entries()].map(([week, bucket]) => ({
+    week,
+    hours: sum(bucket.map((s) => s.durationMs)) / 3_600_000,
+  }));
+
+  // Zero-fill: every ISO week between the earliest observed week and
+  // the latest must appear, so trend analysis covers the real elapsed
+  // calendar time (a gap week = 0 hours, not "missing data"). This
+  // fixes the "trend looks accelerating when it's just a missed
+  // week" footgun.
+  const weeklyMomentum = (() => {
+    if (observedWeeks.length === 0) return [] as typeof observedWeeks;
+    const observedByWeek = new Map(observedWeeks.map((w) => [w.week, w.hours]));
+    const sortedKeys = [...observedByWeek.keys()].sort();
+    const earliest = sortedKeys[0]!;
+    const latest = sortedKeys[sortedKeys.length - 1]!;
+    if (earliest === latest) {
+      return [{ week: earliest, hours: observedByWeek.get(earliest) ?? 0 }];
+    }
+    // Build the full [earliest .. latest] range as a string array, then
+    // map it back to hours. Walking from the latest backwards through
+    // previousIsoWeekKey is the only safe direction (we don't have a
+    // nextIsoWeekKey helper), so we collect keys and reverse at the end.
+    const keys: string[] = [];
+    let cursor = latest;
+    for (;;) {
+      keys.push(cursor);
+      if (cursor === earliest) break;
+      cursor = previousIsoWeekKey(cursor);
+    }
+    return keys.reverse().map((week) => ({ week, hours: observedByWeek.get(week) ?? 0 }));
+  })();
+
   const momentumTrend = classifyMomentum(weeklyMomentum.map((w) => w.hours));
 
   const dailyHours = new Map<string, number>();
