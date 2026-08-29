@@ -4,6 +4,7 @@ import { computeToolUsageStats } from "../../src/analytics/tool-usage.js";
 import { computeStreakStats } from "../../src/analytics/streaks.js";
 import { computeCurrentStreak } from "../../src/analytics/forecast.js";
 import { computeCostReport } from "../../src/analytics/cost.js";
+import { dayKey, monthKey, hourOfDay, dayOfWeek } from "../../src/utils/dates.js";
 import type { SessionRecord, ToolCallRecord } from "../../src/types/domain.js";
 
 function session(overrides: Partial<SessionRecord>): SessionRecord {
@@ -156,5 +157,34 @@ describe("computeCostReport", () => {
     const report = computeCostReport(sessions);
     expect(report.cacheSavingsUsd).toBeGreaterThan(0);
     expect(report.costWithoutCacheUsd).toBeGreaterThan(report.actualCostUsd);
+  });
+});
+
+describe("dates (local-TZ consistency, #6)", () => {
+  it("dayKey and monthKey are consistent with hourOfDay/dayOfWeek in the same TZ", () => {
+    // Pick a fixed instant and verify the dayKey it produces, plus the
+    // hour and weekday, all reflect the same local calendar moment.
+    // The exact values are TZ-dependent, so we assert the cross-consistency
+    // invariants rather than the specific numbers.
+    const noonLocal = new Date();
+    noonLocal.setHours(12, 0, 0, 0);
+    const ts = noonLocal.getTime();
+
+    // The dayKey must start with the same YYYY-MM as the monthKey.
+    expect(monthKey(ts)).toBe(dayKey(ts).slice(0, 7));
+
+    // The hour must be 12 and the weekday must match the same calendar day
+    // the dayKey encodes — these all read local time.
+    expect(hourOfDay(ts)).toBe(12);
+    expect(dayOfWeek(ts)).toBe(noonLocal.getDay());
+  });
+
+  it("dayKey agrees with the local date (not UTC date)", () => {
+    // 23:30 local on 2026-03-15 in any TZ: the local date is 2026-03-15
+    // regardless of where on the globe the user is. Build that moment from
+    // local components and verify dayKey reads it back as 2026-03-15.
+    const local = new Date(2026, 2, 15, 23, 30, 0); // month is 0-indexed
+    expect(dayKey(local.getTime())).toBe("2026-03-15");
+    expect(monthKey(local.getTime())).toBe("2026-03");
   });
 });

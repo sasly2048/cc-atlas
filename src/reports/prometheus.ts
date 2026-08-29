@@ -8,9 +8,17 @@ import type { ReportData } from "./data.js";
  * you into yet another dashboard. */
 export function renderPrometheusExport(data: ReportData): string {
   const lines: string[] = [];
+  // Per the Prometheus exposition spec, # HELP / # TYPE must appear at most
+  // once per metric name — not once per labeled sample. Track which names
+  // have already had their preamble emitted so looped metrics (e.g. the
+  // tool-labeled family) don't repeat it N times.
+  const declared = new Set<string>();
   const metric = (name: string, help: string, type: "gauge" | "counter", value: number, labels = ""): void => {
-    lines.push(`# HELP cc_atlas_${name} ${help}`);
-    lines.push(`# TYPE cc_atlas_${name} ${type}`);
+    if (!declared.has(name)) {
+      lines.push(`# HELP cc_atlas_${name} ${help}`);
+      lines.push(`# TYPE cc_atlas_${name} ${type}`);
+      declared.add(name);
+    }
     lines.push(`cc_atlas_${name}${labels} ${value}`);
   };
 
@@ -47,5 +55,12 @@ function round(value: number, decimals = 2): number {
 }
 
 function escapeLabel(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  // Per the Prometheus exposition spec, label values need to escape
+  // backslash, double-quote, and newline. A raw newline would terminate the
+  // sample line and let an attacker smuggle additional metric lines into the
+  // output (e.g. a project name like `foo"\ncc_atlas_smuggled 1`).
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n");
 }

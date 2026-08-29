@@ -109,6 +109,56 @@ describe("GitCommitRepository", () => {
     repo.insertMany([commit]);
     expect(repo.all()).toHaveLength(1);
   });
+
+  it("upgrades is_ai_attributed when a later session overlaps the commit", () => {
+    // Regression for #5 (stale git AI attribution): insert a commit with
+    // message-only AI attribution, then call recomputeAiAttribution with a
+    // session that overlaps the commit's timestamp.
+    new SessionRepository(db).upsert(
+      session({ id: "s-window", startedAt: 1000, endedAt: 5000 })
+    );
+    const repo = new GitCommitRepository(db);
+    const commit: GitCommitRecord = {
+      hash: "abc",
+      repo: "/tmp/r",
+      author: "A",
+      authorEmail: null,
+      ts: 3000, // inside [1000, 5000]
+      message: "human-written, no claude trailer",
+      insertions: 1,
+      deletions: 0,
+      filesChanged: 1,
+      isAiAttributed: false,
+    };
+    repo.insertMany([commit]);
+    expect(repo.all()[0]!.isAiAttributed).toBe(false);
+
+    const upgraded = repo.recomputeAiAttribution([session({ id: "s-window" })]);
+    expect(upgraded).toBe(1);
+    expect(repo.all()[0]!.isAiAttributed).toBe(true);
+  });
+
+  it("does not downgrade a commit that is already AI-attributed", () => {
+    const repo = new GitCommitRepository(db);
+    repo.insertMany([
+      {
+        hash: "already",
+        repo: "/tmp/r",
+        author: "A",
+        authorEmail: null,
+        ts: 5000,
+        message: "Co-Authored-By: Claude <noreply@anthropic.com>",
+        insertions: 1,
+        deletions: 0,
+        filesChanged: 1,
+        isAiAttributed: true,
+      },
+    ]);
+    // No sessions, so the method is a no-op.
+    const upgraded = repo.recomputeAiAttribution([]);
+    expect(upgraded).toBe(0);
+    expect(repo.all()[0]!.isAiAttributed).toBe(true);
+  });
 });
 
 describe("KvCacheRepository", () => {

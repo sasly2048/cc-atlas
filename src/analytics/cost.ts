@@ -51,7 +51,7 @@ export function computeCostReport(sessions: SessionRecord[], now = Date.now()): 
       ? 0
       : totalCacheReadTokens / (totalCacheReadTokens + totalInputTokens);
 
-  const projectedMonthEndCostUsd = projectMonthEnd(sessions, actualCostUsd, now);
+  const projectedMonthEndCostUsd = projectMonthEnd(sessions, now);
 
   return {
     totalInputTokens,
@@ -68,7 +68,7 @@ export function computeCostReport(sessions: SessionRecord[], now = Date.now()): 
   };
 }
 
-function projectMonthEnd(sessions: SessionRecord[], costSoFarThisRun: number, now: number): number {
+function projectMonthEnd(sessions: SessionRecord[], now: number): number {
   const date = new Date(now);
   const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const dayOfMonth = date.getDate();

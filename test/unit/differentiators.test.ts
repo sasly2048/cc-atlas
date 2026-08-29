@@ -196,7 +196,15 @@ describe("export renderers", () => {
     const sessionRepo = new SessionRepository(db);
     const toolCallRepo = new ToolCallRepository(db);
     sessionRepo.upsert(session({ id: "1", durationMs: 3_600_000 }));
-    toolCallRepo.insertMany([call({ sessionId: "1" })]);
+    // Multiple tool names so the labeled 	ool_calls_by_tool family has
+    // several distinct samples \u2014 that's the case that triggered the
+    // duplicated # HELP / # TYPE bug before the fix (#7).
+    toolCallRepo.insertMany([
+      call({ sessionId: "1", toolName: "Read", turnIndex: 0 }),
+      call({ sessionId: "1", toolName: "Edit", turnIndex: 1, category: "edit" }),
+      call({ sessionId: "1", toolName: "Bash", turnIndex: 2, category: "execute" }),
+      call({ sessionId: "1", toolName: "Bash", turnIndex: 3, category: "execute" }),
+    ]);
     return buildReportData(db, DEFAULT_CONFIG, 0, "All time");
   }
 
@@ -204,6 +212,20 @@ describe("export renderers", () => {
     const text = renderPrometheusExport(buildData());
     expect(text).toContain("# HELP cc_atlas_sessions_total");
     expect(text).toContain("cc_atlas_sessions_total 1");
+  });
+
+  it("emits # HELP / # TYPE exactly once per metric name, even for labeled families (#7)", () => {
+    const text = renderPrometheusExport(buildData());
+    // tool_calls_by_tool is emitted in a loop with one sample per tool —
+    // this is the family that previously repeated its preamble per sample.
+    const helpMatches = text.match(/^# HELP cc_atlas_tool_calls_by_tool\b/gm) ?? [];
+    const typeMatches = text.match(/^# TYPE cc_atlas_tool_calls_by_tool\b/gm) ?? [];
+    expect(helpMatches).toHaveLength(1);
+    expect(typeMatches).toHaveLength(1);
+    // Sanity: the labeled samples themselves are still present, one per tool.
+    expect(text).toMatch(/cc_atlas_tool_calls_by_tool\{tool="Read"\}/);
+    expect(text).toMatch(/cc_atlas_tool_calls_by_tool\{tool="Edit"\}/);
+    expect(text).toMatch(/cc_atlas_tool_calls_by_tool\{tool="Bash"\}/);
   });
 
   it("renders parseable JSON with the expected shape", () => {

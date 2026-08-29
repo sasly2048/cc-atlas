@@ -7,8 +7,13 @@ function line(char = "-"): string {
 }
 
 function row(label: string, value: string): string {
-  const padding = Math.max(1, WIDTH - label.length - value.length);
-  return `${label}${" ".repeat(padding)}${value}`;
+  // Truncate the label if the combined row would otherwise exceed the
+  // 40-char receipt width — a 200-character tool name should produce a
+  // row that's at most WIDTH chars, not blow out the ASCII art.
+  const maxLabelLen = Math.max(1, WIDTH - value.length - 1);
+  const safeLabel = label.length > maxLabelLen ? label.slice(0, maxLabelLen - 1) + "…" : label;
+  const padding = Math.max(1, WIDTH - safeLabel.length - value.length);
+  return `${safeLabel}${" ".repeat(padding)}${value}`;
 }
 
 /** Consolidates: cc-receipt — a novelty ASCII "receipt" of the AI's work,

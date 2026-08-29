@@ -26,7 +26,7 @@ SQLite database, with nothing sent over a network.
 
 <div align="center">
 
-![Last Commit](https://img.shields.io/github/last-commit/sasly2048/cli-unified)
+![Last Commit](https://img.shields.io/github/last-commit/sasly2048/cc-atlas)
 ![License](https://img.shields.io/badge/License-MIT-informational.svg)
 ![Made with Love](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red)
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)
@@ -188,7 +188,7 @@ cc-atlas export --format prometheus        # metrics for an existing Grafana/Pro
 ### From source
 
 ```bash
-git clone https://github.com/sasly2048/cli-unified.git cc-atlas
+git clone https://github.com/sasly2048/cc-atlas.git cc-atlas
 cd cc-atlas
 npm install
 
@@ -205,7 +205,7 @@ so Claude can answer questions about your own usage directly in chat —
 you leaving the conversation.
 
 ```
-/plugin marketplace add sasly2048/cli-unified
+/plugin marketplace add sasly2048/cc-atlas
 /plugin install cc-atlas@cc-atlas-marketplace
 /reload-plugins
 ```

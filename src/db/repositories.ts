@@ -150,11 +150,20 @@ export class GitCommitRepository {
   insertMany(commits: GitCommitRecord[]): void {
     if (commits.length === 0) return;
     const stmt = this.db.prepare(
-      `INSERT OR IGNORE INTO git_commits (
+      `INSERT INTO git_commits (
         hash, repo, author, author_email, ts, message, insertions, deletions,
         files_changed, is_ai_attributed
       ) VALUES (@hash, @repo, @author, @authorEmail, @ts, @message, @insertions,
-        @deletions, @filesChanged, @isAiAttributed)`
+        @deletions, @filesChanged, @isAiAttributed)
+      ON CONFLICT(repo, hash) DO UPDATE SET
+        author=excluded.author,
+        author_email=excluded.author_email,
+        ts=excluded.ts,
+        message=excluded.message,
+        insertions=excluded.insertions,
+        deletions=excluded.deletions,
+        files_changed=excluded.files_changed,
+        is_ai_attributed=MAX(git_commits.is_ai_attributed, excluded.is_ai_attributed)`
     );
     const insertAll = this.db.transaction((rows: GitCommitRecord[]) => {
       for (const row of rows) {
@@ -162,6 +171,37 @@ export class GitCommitRepository {
       }
     });
     insertAll(commits);
+  }
+
+  /** Re-runs the session-window refinement over every stored commit, flipping
+   * is_ai_attributed from 0 → 1 for any commit that lands inside (or shortly
+   * after) a recorded session. Safe to call repeatedly; monotonically
+   * non-decreasing. Run this after sessions are ingested, so a git commit
+   * that was message-only at first write can be promoted by a later session
+   * landing in the same window. */
+  recomputeAiAttribution(sessions: SessionRecord[], bufferMs = 15 * 60 * 1000): number {
+    if (sessions.length === 0) return 0;
+    const windows = sessions
+      .map((s) => [s.startedAt, s.endedAt + bufferMs] as const)
+      .sort((a, b) => a[0] - b[0]);
+    const withinSession = (ts: number): boolean =>
+      windows.some(([start, end]) => ts >= start && ts <= end);
+
+    const rows = this.db
+      .prepare(`SELECT hash, repo, ts, is_ai_attributed FROM git_commits WHERE is_ai_attributed = 0`)
+      .all() as Array<{ hash: string; repo: string; ts: number; is_ai_attributed: number }>;
+    if (rows.length === 0) return 0;
+
+    const update = this.db.prepare(
+      `UPDATE git_commits SET is_ai_attributed = 1 WHERE repo = ? AND hash = ?`
+    );
+    const tx = this.db.transaction((toUpdate: typeof rows) => {
+      for (const r of toUpdate) {
+        if (withinSession(r.ts)) update.run(r.repo, r.hash);
+      }
+    });
+    tx(rows);
+    return rows.filter((r) => withinSession(r.ts)).length;
   }
 
   all(sinceTs = 0): GitCommitRecord[] {

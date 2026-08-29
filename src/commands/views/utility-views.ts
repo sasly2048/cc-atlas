@@ -154,11 +154,19 @@ export function runDoctor(config: ToolkitConfig): void {
   });
 
   for (const repo of config.gitRepos) {
-    checks.push({ label: `Repo exists: ${repo}`, pass: fs.existsSync(path.join(repo, ".git")) });
+    let repoOk = false;
+    try {
+      repoOk = fs.existsSync(path.join(repo, ".git"));
+    } catch {
+      repoOk = false;
+    }
+    checks.push({ label: `Repo exists: ${repo}`, pass: repoOk });
   }
 
   const nodeMajor = Number(process.versions.node.split(".")[0]);
-  checks.push({ label: "Node.js version >= 18", pass: nodeMajor >= 18, detail: process.version });
+  const nodeMinor = Number(process.versions.node.split(".")[1] ?? "0");
+  const nodeOk = nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 17);
+  checks.push({ label: "Node.js version >= 18.17", pass: nodeOk, detail: process.version });
 
   for (const check of checks) {
     const icon = check.pass ? good("✓") : bad("✗");
@@ -184,12 +192,20 @@ export async function runSettingsMenu(config: ToolkitConfig): Promise<ToolkitCon
 
   if (field === "claudeProjectsDir") {
     const value = await input("Path to ~/.claude/projects (blank for default)", config.claudeProjectsDir);
-    return updateConfig({ claudeProjectsDir: value });
+    const trimmed = value.trim();
+    if (trimmed && !fs.existsSync(trimmed)) {
+      console.log(warn(`Note: ${trimmed} does not exist yet — it will be created on first sync, or you can correct the path in Settings.`));
+    }
+    return updateConfig({ claudeProjectsDir: trimmed });
   }
   if (field === "gitRepos") {
     const addMore = await confirm("Add a repo path?", true);
     if (addMore) {
-      const repoPath = await input("Absolute path to a git repo");
+      const repoPath = (await input("Absolute path to a git repo")).trim();
+      if (!repoPath) return config;
+      if (!fs.existsSync(path.join(repoPath, ".git"))) {
+        console.log(warn(`Note: ${repoPath} doesn't look like a git repository (no .git directory). Saved anyway — doctor will flag it.`));
+      }
       return updateConfig({ gitRepos: [...config.gitRepos, repoPath] });
     }
     return config;
@@ -203,17 +219,27 @@ export async function runSettingsMenu(config: ToolkitConfig): Promise<ToolkitCon
   }
   if (field === "dailyHourWarning") {
     const value = await input("Daily hour warning threshold", String(config.burnout.dailyHourWarning));
-    return updateConfig({ burnout: { ...config.burnout, dailyHourWarning: Number(value) || config.burnout.dailyHourWarning } });
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 24) {
+      console.log(warn(`"${value}" isn't a valid number of hours (0–24). Keeping current value ${config.burnout.dailyHourWarning}h.`));
+      return config;
+    }
+    return updateConfig({ burnout: { ...config.burnout, dailyHourWarning: parsed } });
   }
   if (field === "reportsDir") {
     const value = await input("Reports output directory (blank for default)", config.reports.outputDir);
-    return updateConfig({ reports: { ...config.reports, outputDir: value } });
+    return updateConfig({ reports: { ...config.reports, outputDir: value.trim() } });
   }
   if (field === "teamMembers") {
     const addMore = await confirm("Add a team member?", true);
     if (addMore) {
-      const name = await input("Member name (used as a label, not an identity check)");
-      const claudeProjectsDir = await input("Path to their ~/.claude/projects directory");
+      const name = (await input("Member name (used as a label, not an identity check)")).trim();
+      if (!name) return config;
+      const claudeProjectsDir = (await input("Path to their ~/.claude/projects directory")).trim();
+      if (!claudeProjectsDir) return config;
+      if (!fs.existsSync(claudeProjectsDir)) {
+        console.log(warn(`Note: ${claudeProjectsDir} does not exist yet — it will be created on first sync.`));
+      }
       return updateConfig({ team: { members: [...config.team.members, { name, claudeProjectsDir }] } });
     }
     return config;

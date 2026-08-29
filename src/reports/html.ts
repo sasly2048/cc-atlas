@@ -46,7 +46,7 @@ export function renderHtmlReport(data: ReportData): string {
   <div class="stat"><div class="label">Hours</div><div class="value">${data.sessionStats.totalHours.toFixed(1)}</div></div>
   <div class="stat"><div class="label">Commits</div><div class="value">${data.gitActivity.totalCommits}</div></div>
   <div class="stat"><div class="label">Ghost days</div><div class="value">${data.gitActivity.ghostDays.length}</div></div>
-  <div class="stat"><div class="label">Burnout</div><div class="value risk-${data.burnout.riskLevel}">${data.burnout.riskLevel}</div></div>
+  <div class="stat"><div class="label">Burnout</div><div class="value risk-${escapeHtml(data.burnout.riskLevel)}">${escapeHtml(data.burnout.riskLevel)}</div></div>
 </div>
 
 <h2>Top Projects</h2>

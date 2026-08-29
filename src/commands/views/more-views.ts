@@ -214,10 +214,20 @@ export async function runGoalsSettings(config: ToolkitConfig): Promise<ToolkitCo
 
   if (field === "weeklyHoursTarget") {
     const value = await input("Weekly hours target (0 to disable)", String(config.goals.weeklyHoursTarget));
-    return updateConfig({ goals: { ...config.goals, weeklyHoursTarget: Number(value) || 0 } });
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      console.log(warn(`"${value}" isn't a valid number of hours. Keeping current value ${config.goals.weeklyHoursTarget}.`));
+      return config;
+    }
+    return updateConfig({ goals: { ...config.goals, weeklyHoursTarget: parsed } });
   }
   const value = await input("Streak target in days (0 to disable)", String(config.goals.streakTargetDays));
-  return updateConfig({ goals: { ...config.goals, streakTargetDays: Number(value) || 0 } });
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    console.log(warn(`"${value}" isn't a valid day count. Keeping current value ${config.goals.streakTargetDays}.`));
+    return config;
+  }
+  return updateConfig({ goals: { ...config.goals, streakTargetDays: parsed } });
 }
 
 // ── Ask (natural-language-ish query) ────────────────────────────────────

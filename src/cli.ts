@@ -22,11 +22,27 @@ const pkg = JSON.parse(readFileSync(path.join(__dirname, "..", "package.json"), 
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const REPORT_PERIODS: Record<string, { days: number; label: string }> = {
+  day: { days: 1, label: "Today" },
+  week: { days: 7, label: "This week" },
+  month: { days: 30, label: "This month" },
+};
+const REPORT_FORMATS = new Set(["markdown", "html", "standup"]);
+const EXPORT_FORMATS = new Set(["prometheus", "json"]);
+
 const program = new Command();
 program.name("cc-atlas").description("Unified CLI for Claude Code usage analytics").version(pkg.version);
 program.option("-v, --verbose", "verbose logging");
 program.hook("preAction", (thisCommand) => {
-  if (thisCommand.opts().verbose) setVerbose(true);
+  // thisCommand is the leaf (sub)command, not the root program — opt values
+  // live on whichever level defined them, and verbosity on the root has to
+  // be looked up from getOptionValue rather than the leaf's opts, which
+  // would otherwise return an empty object for inherited options.
+  const root = thisCommand.parent ?? thisCommand;
+  const verbose = Boolean(
+    thisCommand.opts().verbose || root.getOptionValueSource?.("verbose") === "cmd"
+  );
+  if (verbose) setVerbose(true);
 });
 
 program
@@ -76,9 +92,24 @@ program
   .argument("[period]", "day | week | month", "week")
   .option("-f, --format <format>", "markdown | html | standup", "markdown")
   .action((period: string, options: { format: string }) => {
+    const periodSpec = REPORT_PERIODS[period];
+    if (!periodSpec) {
+      console.error(
+        `cc-atlas report: unknown period "${period}". Valid: ${Object.keys(REPORT_PERIODS).join(", ")}.`
+      );
+      process.exitCode = 2;
+      return;
+    }
+    if (!REPORT_FORMATS.has(options.format)) {
+      console.error(
+        `cc-atlas report: unknown format "${options.format}". Valid: ${[...REPORT_FORMATS].join(", ")}.`
+      );
+      process.exitCode = 2;
+      return;
+    }
     const ctx = bootstrap();
-    const days = period === "day" ? 1 : period === "month" ? 30 : 7;
-    const label = period === "day" ? "Today" : period === "month" ? "This month" : "This week";
+    const days = periodSpec.days;
+    const label = periodSpec.label;
     const data = buildReportData(ctx.db, ctx.config, Date.now() - days * DAY_MS, label);
 
     if (options.format === "html") console.log(renderHtmlReport(data));
@@ -91,6 +122,13 @@ program
   .description("Export computed stats in Prometheus or JSON format to stdout")
   .option("-f, --format <format>", "prometheus | json", "prometheus")
   .action((options: { format: string }) => {
+    if (!EXPORT_FORMATS.has(options.format)) {
+      console.error(
+        `cc-atlas export: unknown format "${options.format}". Valid: ${[...EXPORT_FORMATS].join(", ")}.`
+      );
+      process.exitCode = 2;
+      return;
+    }
     const ctx = bootstrap();
     const data = buildReportData(ctx.db, ctx.config, 0, "All time");
     console.log(options.format === "json" ? renderJsonExport(data) : renderPrometheusExport(data));

@@ -55,9 +55,14 @@ export function ingestTranscripts(db: Db, options: IngestOptions): IngestResult 
   const ingestState = new IngestStateRepository(db);
 
   const files = walkJsonlFiles(options.projectsDir);
+  // Guard against integer overflow: maxAgeDays * DAY_MS can exceed 2^53 for
+  // anything wildly large (and Date.now() - anything larger than 2^53 ms
+  // produces Infinity, which silently disables the cutoff). Clamp the
+  // product to Number.MAX_SAFE_INTEGER so the cutoff still works as "no
+  // limit" when someone misconfigures it, instead of "every file looks old".
   const cutoff =
     options.maxAgeDays && options.maxAgeDays > 0
-      ? Date.now() - options.maxAgeDays * 24 * 60 * 60 * 1000
+      ? Date.now() - Math.min(options.maxAgeDays * 24 * 60 * 60 * 1000, Number.MAX_SAFE_INTEGER)
       : null;
 
   let filesIngested = 0;
@@ -65,21 +70,22 @@ export function ingestTranscripts(db: Db, options: IngestOptions): IngestResult 
   let sessionsUpserted = 0;
   let toolCallsInserted = 0;
 
-  files.forEach((filePath, index) => {
+  for (let index = 0; index < files.length; index++) {
+    const filePath = files[index]!;
     options.onProgress?.(index + 1, files.length);
 
     let stat: fs.Stats;
     try {
       stat = fs.statSync(filePath);
     } catch {
-      return;
+      continue;
     }
-    if (cutoff && stat.mtimeMs < cutoff) return;
+    if (cutoff !== null && stat.mtimeMs < cutoff) continue;
 
     const previous = ingestState.get(filePath);
     if (previous && previous.mtimeMs === stat.mtimeMs && previous.size === stat.size) {
       filesSkipped += 1;
-      return;
+      continue;
     }
 
     let content: string;
@@ -87,13 +93,13 @@ export function ingestTranscripts(db: Db, options: IngestOptions): IngestResult 
       content = fs.readFileSync(filePath, "utf8");
     } catch (err) {
       logger.debug(`Could not read ${filePath}: ${(err as Error).message}`);
-      return;
+      continue;
     }
 
     const parsed = parseTranscript(filePath, content.split("\n"));
     if (!parsed) {
       filesSkipped += 1;
-      return;
+      continue;
     }
     if (options.sourceLabel) parsed.session.sourceLabel = options.sourceLabel;
 
@@ -111,7 +117,7 @@ export function ingestTranscripts(db: Db, options: IngestOptions): IngestResult 
     filesIngested += 1;
     sessionsUpserted += 1;
     toolCallsInserted += parsed.toolCalls.length;
-  });
+  }
 
   return {
     filesScanned: files.length,

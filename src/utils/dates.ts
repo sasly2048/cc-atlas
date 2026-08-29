@@ -1,7 +1,18 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Two-digit zero-pad. */
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Local-timezone calendar-day key (YYYY-MM-DD). Matches the wall-clock
+ * day the user is on, so it agrees with `hourOfDay` and `dayOfWeek` (which
+ * also use local time). Used for streaks, heatmap rows, cost "this month",
+ * and ghost-day detection — every one of those is a local-calendar concept,
+ * not a UTC one. */
 export function dayKey(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function hourOfDay(ts: number): number {
@@ -24,8 +35,11 @@ export function isoWeekKey(ts: number): string {
   return `${target.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
+/** Local-timezone month key (YYYY-MM). Aligns with `dayKey` so cost/forecast
+ * "this month" and heatmap month rollups can't disagree across timezones. */
 export function monthKey(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 7);
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
 export function daysBetween(a: number, b: number): number {

@@ -1,13 +1,14 @@
 import { simpleGit } from "simple-git";
 import type { GitCommitRecord, SessionRecord } from "../types/domain.js";
 import { logger } from "../core/logger.js";
+import { dayKey } from "../utils/dates.js";
 
 const CLAUDE_TRAILER = /co-authored-by:\s*claude/i;
 const CLAUDE_GENERATED = /generated (with|by) \[?claude code/i;
 
 /** A commit is "AI-attributed" if its message carries Claude Code's
  * conventional trailers, or if it lands inside (or shortly after) a
- * recorded session window — i.e. Claude was actively working around then. */
+ * recorded session window â€” i.e. Claude was actively working around then. */
 export function isAiAttributedMessage(message: string): boolean {
   return CLAUDE_TRAILER.test(message) || CLAUDE_GENERATED.test(message);
 }
@@ -93,7 +94,7 @@ export function correlateCommitsWithSessions(
 }
 
 /** A "ghost day" is a calendar day with AI-attributed commits but no
- * recorded interactive session — i.e. Claude Code ran autonomously
+ * recorded interactive session â€” i.e. Claude Code ran autonomously
  * (e.g. via a hook or scheduled task) while the human was away. */
 export function findGhostDays(commits: GitCommitRecord[], sessions: SessionRecord[]): string[] {
   const sessionDays = new Set(sessions.map((s) => dayKey(s.startedAt)));
@@ -106,6 +107,3 @@ export function findGhostDays(commits: GitCommitRecord[], sessions: SessionRecor
   return [...ghostDays].sort();
 }
 
-function dayKey(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
-}

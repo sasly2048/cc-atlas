@@ -38,7 +38,7 @@
     "lint": "eslint src test --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "better-sqlite3": "^11.9.1",
@@ -65,10 +65,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sasly2048/cli-unified.git"
+    "url": "git+https://github.com/sasly2048/cc-atlas.git"
   },
-  "homepage": "https://github.com/sasly2048/cli-unified#readme",
+  "homepage": "https://github.com/sasly2048/cc-atlas#readme",
   "bugs": {
-    "url": "https://github.com/sasly2048/cli-unified/issues"
+    "url": "https://github.com/sasly2048/cc-atlas/issues"
   }
 }

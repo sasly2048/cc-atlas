@@ -34,7 +34,7 @@ export function renderMarkdownReport(data: ReportData): string {
   lines.push("| Project | Sessions | Hours |");
   lines.push("|---|---|---|");
   for (const p of data.sessionStats.byProject.slice(0, 10)) {
-    lines.push(`| ${p.project} | ${p.sessions} | ${p.hours.toFixed(1)} |`);
+    lines.push(`| ${escapeMarkdownCell(p.project)} | ${p.sessions} | ${p.hours.toFixed(1)} |`);
   }
   lines.push("");
 
@@ -43,7 +43,7 @@ export function renderMarkdownReport(data: ReportData): string {
   lines.push("| Tool | Calls |");
   lines.push("|---|---|");
   for (const [tool, count] of data.toolUsage.byTool.slice(0, 10)) {
-    lines.push(`| ${tool} | ${count} |`);
+    lines.push(`| ${escapeMarkdownCell(tool)} | ${count} |`);
   }
   lines.push("");
 
@@ -75,7 +75,7 @@ export function renderStandupReport(data: ReportData): string {
   lines.push(`- ${data.sessionStats.totalSessions} session(s), ${formatDuration(data.sessionStats.totalHours * 3_600_000)}`);
   lines.push(`- ${data.gitActivity.totalCommits} commit(s), +${data.gitActivity.totalInsertions}/-${data.gitActivity.totalDeletions}`);
   const topProject = data.sessionStats.byProject[0];
-  if (topProject) lines.push(`- Focused mostly on **${topProject.project}** (${topProject.hours.toFixed(1)}h)`);
+  if (topProject) lines.push(`- Focused mostly on **${escapeInlineMarkdown(topProject.project)}** (${topProject.hours.toFixed(1)}h)`);
   if (data.gitActivity.ghostDays.length > 0) {
     lines.push(`- ${data.gitActivity.ghostDays.length} autonomous ghost day(s)`);
   }
@@ -110,4 +110,16 @@ export function renderCompareReport(current: ReportData, previous: ReportData): 
     `| Burnout score | ${previous.burnout.score} | ${current.burnout.score} | ${delta(current.burnout.score, previous.burnout.score)} |`
   );
   return lines.join("\n");
+}
+
+/** Escapes `|` and newlines so a project name like "alpha|bravo" or one
+ * containing a newline can't break the column layout or inject extra rows. */
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+}
+
+/** Escapes inline markdown emphasis so a project name with embedded `*` or
+ * `_` can't change the rendered emphasis of the surrounding line. */
+function escapeInlineMarkdown(value: string): string {
+  return value.replace(/([*_`])/g, "\\$1").replace(/\r?\n/g, " ");
 }

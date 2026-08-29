@@ -19,9 +19,24 @@ const CLI_ENTRY = path.resolve(__dirname, "../../src/cli.ts");
 const TSX_CLI = path.resolve(__dirname, "../../node_modules/tsx/dist/cli.mjs");
 
 function runCli(args: string[]): { stdout: string; status: number } {
+  // On Windows os.homedir() reads USERPROFILE before HOME, and on POSIX the
+  // cc-atlas code paths also touch $HOME for the default projects directory.
+  // Override both so the CLI can never accidentally read the real user's
+  // ~/.claude (which is exactly what happened before this — sync ingested
+  // 117 real files from the test runner's home and the "empty" test failed).
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    CC_ATLAS_HOME: path.join(home, ".cc-atlas"),
+    HOME: home,
+    USERPROFILE: home,
+    // Force-disable colored output to keep the stdout assertions stable
+    // across TTY/no-TTY CI runs.
+    NO_COLOR: "1",
+    FORCE_COLOR: "0",
+  };
   try {
     const stdout = execFileSync(process.execPath, [TSX_CLI, CLI_ENTRY, ...args], {
-      env: { ...process.env, CC_ATLAS_HOME: path.join(home, ".cc-atlas"), HOME: home },
+      env,
       encoding: "utf8",
     });
     return { stdout, status: 0 };
