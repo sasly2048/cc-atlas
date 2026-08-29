@@ -116,6 +116,13 @@ section](#extras) below for what each one does.
 SVG README badge, a cron-friendly streak-risk alert, a live session monitor,
 and a one-line `status` command for shell prompts or a statusline widget.
 
+- **Hardened for production** — a full [security & code-quality audit
+ ](./SECURITY_AUDIT.md) (24 issues: 4 critical, 6 high, 8 medium, 6 low) was
+performed and fixed; injection vectors in every export format (Prometheus,
+Markdown, HTML, SVG) are now escaped, the CLI tests are properly isolated
+from the user's real `~/.claude`, and the config loader is resilient to
+hand-edited files with wrong types. 82 tests cover the fixes.
+
 - **Extensibility** — a plugin system (`config.plugins.enabled`) for adding
 your own menu screens with dependency-injected access to the same SQLite
 connection and config, without touching this package's source.
@@ -274,9 +281,12 @@ src/
   plugins/                  plugin type + loader
 
 test/
-  unit/                    pure-function tests, no I/O
+  unit/                    pure-function tests, no I/O (incl. security.test.ts)
   integration/             SQLite + filesystem tests, temp directories
   cli/                     spawns the CLI via tsx, checks exit codes and stdout
+
+AUDIT.md                   package-by-package mapping back to the yurukusa catalog
+SECURITY_AUDIT.md          per-issue writeup of the security & code-quality audit
 
 .claude-plugin/            Claude Code plugin manifest + single-plugin marketplace catalog
 skills/                    Claude Code skills that shell out to the built CLI (see below)
@@ -340,6 +350,18 @@ export default definePlugin({
 - `cc-atlas ask` is pattern-matching over a fixed, documented vocabulary,
   not a language model — see [Extras](#extras).
 
+## Security
+
+All export formats (Prometheus text exposition, Markdown, HTML, SVG) escape
+dynamic content — tool names, project names, and report values are user-derived
+and could otherwise let a malicious cwd or commit message smuggle additional
+metric lines, table rows, or HTML into the output. The config loader also
+sanitizes hand-edited files on read, so a typo in `~/.cc-atlas/config.json`
+won't bring the CLI down. See [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) for the
+full per-issue writeup (24 issues, all fixed) and
+[`test/unit/security.test.ts`](./test/unit/security.test.ts) for the
+regression tests.
+
 ## Credits & inspiration
 
 cc-atlas is inspired by, and its initial feature set is repackaged from,
@@ -375,10 +397,14 @@ pull request.
 
 Actively developed. Core ingestion, the full analytics/menu/report surface,
 and the team/goals/anomaly/export additions are solid and covered by tests
-(unit, integration, and CLI-process). Known gaps are tracked explicitly in
-[AUDIT.md](./AUDIT.md)'s "Documented gaps" section rather than left
-silent — mostly narrower sub-metrics from the original packages that
-weren't reproducible from the transcript format with confidence.
+(unit, integration, and CLI-process — **82 tests, all passing**). A
+[security & code-quality audit](./SECURITY_AUDIT.md) covering 24 issues
+(4 critical, 6 high, 8 medium, 6 low) was performed and every finding was
+fixed; the audit document is the per-issue writeup. Known feature gaps
+are tracked explicitly in [AUDIT.md](./AUDIT.md)'s "Documented gaps"
+section rather than left silent — mostly narrower sub-metrics from the
+original packages that weren't reproducible from the transcript format
+with confidence.
 
 ## License
 
